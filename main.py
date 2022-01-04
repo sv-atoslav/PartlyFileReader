@@ -1,6 +1,6 @@
 import argparse
+import json
 from pathlib import Path
-from typing import NamedTuple
 
 parser = argparse.ArgumentParser(description='Tool for read only unsecure lines with context')
 parser.add_argument(
@@ -34,10 +34,16 @@ def fatal_error(message: str):
 #         fatal_error(f"{path_to_file} - unicode error: {ude}")
 
 
-class CodeCoordinate(NamedTuple):
-    # script called for 1 file at 1 launch, so, we don't need store "filename" value
-    number_of_line: int
-    content_of_line: str
+# use usual dict instead
+# class CodeCoordinate(NamedTuple):
+#     number_of_line: int
+#     content_of_line: str
+#
+#     def __gt__(self, other):
+#         return self.number_of_line > other.number_of_line
+#
+#     def __lt__(self, other):
+#         return self.number_of_line < other.number_of_line
 
 
 # noinspection PyUnboundLocalVariable
@@ -63,7 +69,7 @@ def acceptable_values(input_pointers: list[int]) -> list[str]:
     return unsorted_lines
 
 
-def draw_file(lines: list[str], pointers: list[int], dispersion: int) -> list[CodeCoordinate]:
+def draw_file(lines: list[str], pointers: list[int], dispersion: int) -> list[dict]:
     """ used for show only lines, that "neighbours" to code with errors
     :param dispersion: "radius" for pieces, that will be exported
     :param pointers: list of "centers" of pieces
@@ -74,25 +80,21 @@ def draw_file(lines: list[str], pointers: list[int], dispersion: int) -> list[Co
     for index in range(1, len(whole_file)):
         for target in pointers:
             if abs(target - index) <= dispersion:
-                lines_to_show.append(CodeCoordinate(
-                    number_of_line=index,
-                    content_of_line=whole_file[index]))
-                break  # if line (N) already append, skip and check line N+1
-    return list(set(lines_to_show))
+                lines_to_show.append({
+                    'number_of_line': index,
+                    'content_of_line': whole_file[index]})
+                break  # if line (N) already append, skip and check line (N+1)
+    return lines_to_show
 
 
-try:
-    input_pointers: list[int] = []
-    for number in args.lines.split(","):
-        input_pointers.append(int(number))
-    filtered_values = draw_file(
-        acceptable_values(input_pointers),
-        input_pointers,
-        args.epsilon)
-    print(filtered_values)
-
-
-except Exception as e:
-    print(f"undebugged error {e=}")
+input_pointers: list[int] = []
+for number in args.lines.split(","):
+    input_pointers.append(int(number))
+filtered_values = draw_file(
+    acceptable_values(input_pointers),
+    input_pointers,
+    args.epsilon)
+with open(str("partly_" + Path(args.file).name + ".json"), 'w') as json_file:
+    json.dump(filtered_values, json_file, indent=2, sort_keys=True)
 
 exit()
